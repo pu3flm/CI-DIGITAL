@@ -29,10 +29,65 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
+      - name: Prepare static site
+        run: |
+          mkdir -p _site
+          rsync -a --exclude '.git' --exclude '_site' ./ _site/
+          python3 - <<'PY'
+          from pathlib import Path
+
+          page = Path('_site/index.html')
+          html = page.read_text(encoding='utf-8')
+
+          nav_css = '''
+              .version-nav {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.65rem;
+                margin-bottom: 1rem;
+                border: 1px solid var(--border);
+                border-radius: 0.9rem;
+                background: var(--panel);
+                padding: 0.7rem 0.85rem;
+                box-shadow: var(--shadow);
+              }
+
+              .version-nav a {
+                display: inline-flex;
+                align-items: center;
+                border-radius: 0.65rem;
+                background: var(--accent-soft);
+                color: var(--text);
+                padding: 0.45rem 0.7rem;
+                text-decoration: none;
+                font-weight: 700;
+              }
+          '''
+
+          nav_html = '''
+              <nav class="version-nav" aria-label="Simulator versions">
+                <strong>CI-DIGITAL · Systolic Array Simulators</strong>
+                <a href="v2/">Open v2: 20×20 color wavefront →</a>
+              </nav>
+          '''
+
+          if 'Open v2: 20×20 color wavefront' not in html:
+              html = html.replace('</style>', nav_css + '\n  </style>', 1)
+              html = html.replace(
+                  '<main class="shell">',
+                  '<main class="shell">\n' + nav_html,
+                  1,
+              )
+
+          page.write_text(html, encoding='utf-8')
+          PY
+
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
         with:
-          path: .
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment
