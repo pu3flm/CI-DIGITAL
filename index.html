@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Systolic Array Pulse Simulator</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --panel-2: #eef2f7;
+      --text: #18202a;
+      --muted: #647184;
+      --border: #cbd3df;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --complete: #e8edf4;
+      --shadow: 0 10px 30px rgb(15 23 42 / 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #10141b;
+        --panel: #181e27;
+        --panel-2: #202835;
+        --text: #eef3fa;
+        --muted: #aab5c4;
+        --border: #394455;
+        --accent: #78a7ff;
+        --accent-soft: #1f3760;
+        --complete: #253040;
+        --shadow: none;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+
+    button {
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      background: var(--panel);
+      color: var(--text);
+      padding: 0.65rem 1rem;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    button:focus-visible, input:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+      outline-offset: 2px;
+    }
+
+    .shell {
+      width: min(1120px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 2rem 0 3rem;
+    }
+
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 0.4rem; font-size: clamp(1.7rem, 4vw, 2.45rem); }
+    h2 { font-size: 1.05rem; margin-bottom: 0.7rem; }
+    .subtitle, .muted { color: var(--muted); }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin: 1.25rem 0;
+    }
+
+    .metric, .panel, .pe, .result-cell {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 1rem;
+    }
+
+    .metric { padding: 0.9rem; }
+    .metric-label { color: var(--muted); font-size: 0.85rem; }
+    .metric-value { margin-top: 0.25rem; font-size: 1.35rem; font-weight: 700; }
+
+    .panel {
+      padding: 1rem;
+      box-shadow: var(--shadow);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .speed {
+      min-width: 13rem;
+      flex: 1;
+    }
+
+    .speed input { width: 100%; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .matrix-edit {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.35rem;
+      margin-bottom: 1rem;
+    }
+
+    .matrix-edit input {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 0.65rem;
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 0.55rem 0.25rem;
+      text-align: center;
+    }
+
+    .callout {
+      border-left: 4px solid var(--accent);
+      border-radius: 0.75rem;
+      background: var(--accent-soft);
+      padding: 0.8rem;
+      font-size: 0.9rem;
+    }
+
+    .array-scroll { overflow-x: auto; }
+
+    .array {
+      min-width: 610px;
+      display: grid;
+      grid-template-columns: 72px repeat(3, minmax(150px, 1fr));
+      gap: 0.55rem;
+    }
+
+    .flow-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .top-label {
+      min-width: 610px;
+      display: grid;
+      grid-template-columns: 72px repeat(3, minmax(150px, 1fr));
+      gap: 0.55rem;
+      margin-bottom: 0.45rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .pe {
+      min-height: 126px;
+      padding: 0.8rem;
+      transition: background 160ms ease, border-color 160ms ease,
+        transform 160ms ease;
+    }
+
+    .pe.active {
+      border: 2px solid var(--accent);
+      background: var(--accent-soft);
+      transform: translateY(-2px);
+    }
+
+    .pe.complete { background: var(--complete); }
+
+    .pe-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .pe-name { font-weight: 700; }
+    .pe-count { color: var(--muted); font-size: 0.8rem; }
+
+    .tokens {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.65rem;
+    }
+
+    .token, .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      padding: 0.2rem 0.55rem;
+      font-size: 0.82rem;
+    }
+
+    .equation { margin-top: 0.55rem; font-size: 0.88rem; }
+    .acc { margin-top: 0.7rem; font-size: 0.9rem; }
+
+    .explanation {
+      margin-top: 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      background: var(--panel-2);
+      padding: 0.8rem;
+      font-size: 0.9rem;
+    }
+
+    .result {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.55rem;
+      width: min(470px, 100%);
+      margin-top: 0.7rem;
+    }
+
+    .result-cell {
+      padding: 0.75rem;
+      text-align: center;
+    }
+
+    .result-label { color: var(--muted); font-size: 0.78rem; }
+    .result-value { margin-top: 0.2rem; font-size: 1.25rem; font-weight: 700; }
+
+    .section-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 800px) {
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 460px) {
+      .shell { width: min(100% - 1rem, 1120px); }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .controls button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <h1>Systolic Array Pulse Simulator</h1>
+      <p class="subtitle">
+        Observe aligned matrix values propagate through a 3 × 3 array and
+        trigger local multiply–accumulate operations.
+      </p>
+    </header>
+
+    <section class="metrics" aria-label="Simulation status">
+      <div class="metric">
+        <div class="metric-label">Clock cycle</div>
+        <div id="cycleValue" class="metric-value">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Active PEs</div>
+        <div id="activeValue" class="metric-value">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Completed MACs</div>
+        <div id="macValue" class="metric-value">0 / 27</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Array state</div>
+        <div id="stateValue" class="metric-value">Ready</div>
+      </div>
+    </section>
+
+    <section class="panel controls" aria-label="Simulation controls">
+      <button id="playBtn" class="primary" type="button">Play</button>
+      <button id="stepBtn" type="button">Step</button>
+      <button id="resetBtn" type="button">Reset</button>
+
+      <label class="speed">
+        <span class="muted">Pulse speed</span>
+        <input id="speedInput" type="range" min="250" max="1400"
+               step="50" value="750">
+      </label>
+    </section>
+
+    <div class="layout">
+      <aside class="panel">
+        <h2>Input matrices</h2>
+        <p class="muted">
+          A values move horizontally. B values move vertically.
+        </p>
+
+        <strong>A</strong>
+        <div id="matrixA" class="matrix-edit"></div>
+
+        <strong>B</strong>
+        <div id="matrixB" class="matrix-edit"></div>
+
+        <div class="callout">
+          <strong>Why “systolic”?</strong>
+          <div>
+            Values move through the array in regular clocked pulses, while each
+            processing element executes a local MAC.
+          </div>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>3 × 3 processing-element array</h2>
+            <p class="muted">
+              PE(i,j): accumulator ← accumulator + A(i,k) × B(k,j)
+            </p>
+          </div>
+          <span id="pulseBadge" class="badge">Pulse 0</span>
+        </div>
+
+        <div class="array-scroll">
+          <div class="top-label">
+            <div></div>
+            <div>B ↓</div>
+            <div>B ↓</div>
+            <div>B ↓</div>
+          </div>
+
+          <div class="array">
+            <div class="flow-label">A →</div>
+            <div id="pe-0-0" class="pe"></div>
+            <div id="pe-0-1" class="pe"></div>
+            <div id="pe-0-2" class="pe"></div>
+
+            <div class="flow-label">A →</div>
+            <div id="pe-1-0" class="pe"></div>
+            <div id="pe-1-1" class="pe"></div>
+            <div id="pe-1-2" class="pe"></div>
+
+            <div class="flow-label">A →</div>
+            <div id="pe-2-0" class="pe"></div>
+            <div id="pe-2-1" class="pe"></div>
+            <div id="pe-2-2" class="pe"></div>
+          </div>
+        </div>
+
+        <div id="explanation" class="explanation" aria-live="polite">
+          Press Play or Step. The first pulse enters PE(0,0).
+        </div>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-top: 1rem">
+      <div class="section-head">
+        <h2>Result matrix C = A × B</h2>
+        <span id="resultStatus" class="muted">Partial results</span>
+      </div>
+      <div id="matrixC" class="result"></div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const n = 3;
+    const maxCycle = 3 * n - 3;
+    const defaultA = [[1,2,3],[4,5,6],[7,8,9]];
+    const defaultB = [[9,8,7],[6,5,4],[3,2,1]];
+
+    let A = defaultA.map(row => [...row]);
+    let B = defaultB.map(row => [...row]);
+    let accum;
+    let counts;
+    let cycle;
+    let running;
+    let timer;
+
+    const $ = id => document.getElementById(id);
+    const cycleValue = $("cycleValue");
+    const activeValue = $("activeValue");
+    const macValue = $("macValue");
+    const stateValue = $("stateValue");
+    const pulseBadge = $("pulseBadge");
+    const explanation = $("explanation");
+    const resultStatus = $("resultStatus");
+    const playBtn = $("playBtn");
+    const stepBtn = $("stepBtn");
+    const resetBtn = $("resetBtn");
+    const speedInput = $("speedInput");
+
+    function buildMatrixEditor(id, matrix, onChange) {
+      const root = $(id);
+      root.replaceChildren();
+
+      matrix.forEach((row, i) => {
+        row.forEach((value, j) => {
+          const input = document.createElement("input");
+          input.type = "number";
+          input.value = value;
+          input.setAttribute(
+            "aria-label",
+            `${id}, row ${i + 1}, column ${j + 1}`
+          );
+
+          input.addEventListener("change", () => {
+            onChange(i, j, Number(input.value) || 0);
+            reset();
+          });
+
+          root.appendChild(input);
+        });
+      });
+    }
+
+    function renderResult() {
+      const root = $("matrixC");
+      root.replaceChildren();
+
+      for (let i = 0; i < n; i += 1) {
+        for (let j = 0; j < n; j += 1) {
+          const cell = document.createElement("div");
+          cell.className = "result-cell";
+          cell.innerHTML =
+            `<div class="result-label">C${i + 1}${j + 1}</div>` +
+            `<div class="result-value">${accum[i][j]}</div>`;
+          root.appendChild(cell);
+        }
+      }
+    }
+
+    function renderPEs(activeOps = []) {
+      const activeMap = new Map(
+        activeOps.map(op => [`${op.i}-${op.j}`, op])
+      );
+
+      for (let i = 0; i < n; i += 1) {
+        for (let j = 0; j < n; j += 1) {
+          const el = $(`pe-${i}-${j}`);
+          const op = activeMap.get(`${i}-${j}`);
+          el.className = "pe";
+
+          if (op) {
+            el.classList.add("active");
+          } else if (counts[i][j] === n) {
+            el.classList.add("complete");
+          }
+
+          const body = op
+            ? `<div class="tokens">` +
+                `<span class="token">A=${op.a}</span>` +
+                `<span class="token">B=${op.b}</span>` +
+              `</div>` +
+              `<div class="equation">${op.a} × ${op.b} = ${op.product}</div>`
+            : `<div class="equation muted">` +
+                `${counts[i][j] === n ? "Complete" : "Waiting for pulse"}` +
+              `</div>`;
+
+          el.innerHTML =
+            `<div class="pe-head">` +
+              `<span class="pe-name">PE(${i},${j})</span>` +
+              `<span class="pe-count">${counts[i][j]}/${n} MACs</span>` +
+            `</div>` +
+            body +
+            `<div class="acc">Accumulator: <strong>${accum[i][j]}</strong></div>`;
+        }
+      }
+    }
+
+    function operationsForCycle(t) {
+      const ops = [];
+
+      for (let i = 0; i < n; i += 1) {
+        for (let j = 0; j < n; j += 1) {
+          const k = t - i - j;
+
+          if (k >= 0 && k < n) {
+            ops.push({
+              i,
+              j,
+              k,
+              a: A[i][k],
+              b: B[k][j],
+              product: A[i][k] * B[k][j]
+            });
+          }
+        }
+      }
+
+      return ops;
+    }
+
+    function updateMetrics(activeOps) {
+      const completed = counts.flat().reduce((sum, value) => sum + value, 0);
+      cycleValue.textContent = cycle;
+      activeValue.textContent = activeOps.length;
+      macValue.textContent = `${completed} / ${n * n * n}`;
+      pulseBadge.textContent = `Pulse ${cycle}`;
+      stateValue.textContent =
+        completed === n * n * n ? "Complete" : running ? "Running" : "Paused";
+      resultStatus.textContent =
+        completed === n * n * n ? "Final result" : "Partial results";
+    }
+
+    function applyCycle() {
+      if (cycle > maxCycle) {
+        stop();
+        stateValue.textContent = "Complete";
+        explanation.textContent =
+          "All 27 multiply–accumulate operations are complete. " +
+          "Each PE now stores one element of C.";
+        return;
+      }
+
+      const ops = operationsForCycle(cycle);
+
+      ops.forEach(op => {
+        accum[op.i][op.j] += op.product;
+        counts[op.i][op.j] += 1;
+      });
+
+      renderPEs(ops);
+      renderResult();
+      updateMetrics(ops);
+
+      if (ops.length) {
+        const labels = ops
+          .map(op => `PE(${op.i},${op.j})`)
+          .join(", ");
+
+        explanation.textContent =
+          `Pulse ${cycle}: ${labels} receive aligned A and B values ` +
+          "and perform local MAC operations.";
+      } else {
+        explanation.textContent =
+          `Pulse ${cycle}: data is propagating through the array.`;
+      }
+
+      cycle += 1;
+
+      if (cycle > maxCycle) {
+        stop();
+        stateValue.textContent = "Complete";
+        resultStatus.textContent = "Final result";
+      }
+    }
+
+    function intervalMs() {
+      return 1650 - Number(speedInput.value);
+    }
+
+    function schedule() {
+      clearInterval(timer);
+
+      if (!running) {
+        return;
+      }
+
+      timer = setInterval(() => {
+        applyCycle();
+
+        if (cycle > maxCycle) {
+          stop();
+        }
+      }, intervalMs());
+    }
+
+    function play() {
+      if (cycle > maxCycle) {
+        reset();
+      }
+
+      running = !running;
+      playBtn.textContent = running ? "Pause" : "Play";
+      stateValue.textContent = running ? "Running" : "Paused";
+      schedule();
+    }
+
+    function stop() {
+      running = false;
+      clearInterval(timer);
+      timer = null;
+      playBtn.textContent = "Play";
+    }
+
+    function reset() {
+      stop();
+      cycle = 0;
+      accum = Array.from({length: n}, () => Array(n).fill(0));
+      counts = Array.from({length: n}, () => Array(n).fill(0));
+      renderPEs([]);
+      renderResult();
+      updateMetrics([]);
+      stateValue.textContent = "Ready";
+      pulseBadge.textContent = "Pulse 0";
+      explanation.textContent =
+        "Press Play or Step. The first pulse enters PE(0,0).";
+      resultStatus.textContent = "Partial results";
+    }
+
+    playBtn.addEventListener("click", play);
+
+    stepBtn.addEventListener("click", () => {
+      stop();
+      applyCycle();
+    });
+
+    resetBtn.addEventListener("click", reset);
+    speedInput.addEventListener("input", schedule);
+
+    buildMatrixEditor("matrixA", A, (i, j, value) => {
+      A[i][j] = value;
+    });
+
+    buildMatrixEditor("matrixB", B, (i, j, value) => {
+      B[i][j] = value;
+    });
+
+    reset();
+  </script>
+</body>
+</html>
