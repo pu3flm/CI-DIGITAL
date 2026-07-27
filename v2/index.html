@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive 20 by 20 systolic-array wavefront simulator.">
+  <title>Systolic Array Simulator v2 — 20×20 Wavefront</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --panel-2: #edf2f8;
+      --text: #17202a;
+      --muted: #627086;
+      --border: #cbd5e1;
+      --accent: #2563eb;
+      --accent-text: #ffffff;
+      --active: #f59e0b;
+      --partial: #60a5fa;
+      --complete: #22c55e;
+      --shadow: 0 10px 30px rgb(15 23 42 / 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d121a;
+        --panel: #171e28;
+        --panel-2: #202a37;
+        --text: #edf3fb;
+        --muted: #a5b1c2;
+        --border: #39475a;
+        --accent: #79a7ff;
+        --accent-text: #07111f;
+        --active: #fbbf24;
+        --partial: #3b82f6;
+        --complete: #34d399;
+        --shadow: none;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+        BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+
+    button, select {
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    button {
+      padding: 0.65rem 1rem;
+      cursor: pointer;
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: var(--accent-text);
+      font-weight: 700;
+    }
+
+    button:focus-visible,
+    select:focus-visible,
+    input:focus-visible,
+    a:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent);
+      outline-offset: 2px;
+    }
+
+    a { color: var(--accent); }
+
+    .shell {
+      width: min(1180px, calc(100% - 1.5rem));
+      margin: 0 auto;
+      padding: 1rem 0 3rem;
+    }
+
+    .version-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 0.9rem;
+      background: var(--panel);
+      padding: 0.7rem 0.85rem;
+      box-shadow: var(--shadow);
+    }
+
+    .version-nav a {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 0.65rem;
+      background: var(--panel-2);
+      padding: 0.45rem 0.7rem;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 0.35rem; font-size: clamp(1.65rem, 4vw, 2.45rem); }
+    h2 { margin-bottom: 0.65rem; font-size: 1.05rem; }
+    .subtitle, .muted { color: var(--muted); }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.7rem;
+      margin: 1.1rem 0;
+    }
+
+    .metric, .panel {
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .metric { padding: 0.85rem; }
+    .metric-label { color: var(--muted); font-size: 0.82rem; }
+    .metric-value { margin-top: 0.2rem; font-size: 1.25rem; font-weight: 800; }
+
+    .panel { padding: 1rem; }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 0.7rem;
+      margin-bottom: 1rem;
+    }
+
+    .controls label {
+      display: grid;
+      gap: 0.3rem;
+      min-width: 12rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .controls label.speed { flex: 1; }
+    .controls input[type="range"] { width: 100%; }
+    .controls select { padding: 0.55rem 0.7rem; }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 260px;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .section-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: start;
+      justify-content: space-between;
+      gap: 0.7rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 16%, var(--panel));
+      padding: 0.25rem 0.6rem;
+      color: var(--text);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      margin: 0.75rem 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.38rem;
+    }
+
+    .legend-box {
+      width: 0.85rem;
+      height: 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 0.2rem;
+    }
+
+    .legend-idle { background: var(--panel-2); }
+    .legend-active { background: var(--active); }
+    .legend-partial { background: var(--partial); }
+    .legend-complete { background: var(--complete); }
+
+    .array-frame {
+      border: 1px solid var(--border);
+      border-radius: 0.9rem;
+      background: var(--panel-2);
+      padding: 0.6rem;
+    }
+
+    .axis-top {
+      margin: 0 0 0.4rem 25px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .array-row {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 0.35rem;
+      align-items: stretch;
+    }
+
+    .axis-left {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.68rem;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(20, minmax(0, 1fr));
+      gap: clamp(1px, 0.25vw, 3px);
+      width: 100%;
+    }
+
+    .pe-tile {
+      aspect-ratio: 1;
+      min-width: 0;
+      border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+      border-radius: clamp(1px, 0.3vw, 4px);
+      padding: 0;
+      background: var(--panel-2);
+      cursor: crosshair;
+      transition: background-color 110ms linear, transform 110ms ease,
+        opacity 110ms linear, box-shadow 110ms linear;
+    }
+
+    .pe-tile:hover,
+    .pe-tile:focus-visible,
+    .pe-tile.selected {
+      z-index: 2;
+      transform: scale(1.18);
+      outline: 2px solid var(--text);
+      outline-offset: 1px;
+    }
+
+    .pe-tile.idle { background: var(--panel-2); opacity: 0.58; }
+    .pe-tile.partial { background: var(--partial); opacity: var(--tile-opacity, 0.65); }
+    .pe-tile.active {
+      background: var(--active);
+      border-color: var(--text);
+      opacity: 1;
+      box-shadow: 0 0 0 1px var(--active), 0 0 12px color-mix(in srgb, var(--active) 75%, transparent);
+      animation: pulse 430ms ease-out;
+    }
+    .pe-tile.complete { background: var(--complete); opacity: 0.88; }
+
+    @keyframes pulse {
+      0% { transform: scale(0.58); opacity: 0.25; }
+      55% { transform: scale(1.16); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .explanation {
+      margin-top: 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 0.8rem;
+      background: var(--panel-2);
+      padding: 0.8rem;
+      font-size: 0.9rem;
+    }
+
+    .inspector-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.35rem 0.7rem;
+      margin: 0;
+      font-size: 0.86rem;
+    }
+
+    .inspector-grid dt { color: var(--muted); }
+    .inspector-grid dd {
+      margin: 0;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .callout {
+      border-left: 4px solid var(--accent);
+      border-radius: 0.75rem;
+      background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+      padding: 0.8rem;
+      font-size: 0.88rem;
+    }
+
+    .tooltip {
+      position: fixed;
+      z-index: 50;
+      width: min(250px, calc(100vw - 16px));
+      pointer-events: none;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      background: var(--panel);
+      color: var(--text);
+      padding: 0.65rem 0.75rem;
+      box-shadow: 0 10px 28px rgb(0 0 0 / 0.24);
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 850px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 480px) {
+      .shell { width: min(100% - 0.65rem, 1180px); }
+      .array-frame { padding: 0.3rem; }
+      .array-row { grid-template-columns: 15px minmax(0, 1fr); gap: 0.2rem; }
+      .axis-top { margin-left: 17px; }
+      .pe-tile { border-width: 0; }
+      .controls button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <nav class="version-nav" aria-label="Simulator versions">
+      <strong>CI-DIGITAL · Systolic Array Simulators</strong>
+      <a href="../">← Open v1: detailed 3×3 array</a>
+    </nav>
+
+    <header>
+      <h1>Systolic Array Simulator v2</h1>
+      <p class="subtitle">
+        A 20×20 processing-element array that makes the clocked systolic
+        wavefront visible through tile-color changes.
+      </p>
+    </header>
+
+    <section class="metrics" aria-label="Simulation status">
+      <div class="metric">
+        <div class="metric-label">Clock cycle</div>
+        <div id="clockMetric" class="metric-value">0 / 57</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Active PEs</div>
+        <div id="activeMetric" class="metric-value">1</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Completed MACs</div>
+        <div id="macMetric" class="metric-value">0 / 8000</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Array state</div>
+        <div id="stateMetric" class="metric-value">Ready</div>
+      </div>
+    </section>
+
+    <section class="panel controls" aria-label="Simulation controls">
+      <button id="playButton" class="primary" type="button">Play</button>
+      <button id="stepButton" type="button">Step</button>
+      <button id="resetButton" type="button">Reset</button>
+
+      <label class="speed">
+        Pulse interval
+        <input id="speedControl" type="range" min="40" max="800"
+          step="20" value="280">
+      </label>
+
+      <label>
+        Tile coloring
+        <select id="colorMode">
+          <option value="state">Processing state</option>
+          <option value="progress">MAC progress</option>
+          <option value="magnitude">Accumulator magnitude</option>
+        </select>
+      </label>
+    </section>
+
+    <div class="main-grid">
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>20×20 processing-element array</h2>
+            <p class="muted">
+              A values move horizontally; B values move vertically. Their
+              clock-aligned intersection activates each PE.
+            </p>
+          </div>
+          <span id="pulseBadge" class="badge">Pulse 0</span>
+        </div>
+
+        <div class="legend" aria-label="Tile color legend">
+          <span class="legend-item"><span class="legend-box legend-idle"></span>Waiting</span>
+          <span class="legend-item"><span class="legend-box legend-active"></span>MAC this cycle</span>
+          <span class="legend-item"><span class="legend-box legend-partial"></span>Partial result</span>
+          <span class="legend-item"><span class="legend-box legend-complete"></span>Complete</span>
+        </div>
+
+        <div class="array-frame">
+          <div class="axis-top">B data flows downward ↓</div>
+          <div class="array-row">
+            <div class="axis-left">A data flows right →</div>
+            <div id="tileGrid" class="tile-grid" role="grid"
+              aria-label="20 by 20 systolic processing-element array"></div>
+          </div>
+        </div>
+
+        <div id="cycleExplanation" class="explanation" aria-live="polite">
+          At clock 0, the first A and B values meet at PE(0,0). Press Play to
+          observe the active color pulse propagate diagonally.
+        </div>
+      </section>
+
+      <aside>
+        <section class="panel">
+          <h2>Selected processing element</h2>
+          <p class="muted">
+            Hover for temporary values. Click a tile to pin it here.
+          </p>
+          <div id="inspector"></div>
+        </section>
+
+        <div class="callout" style="margin-top: 1rem">
+          <strong>What “systolic” looks like</strong>
+          <p style="margin: 0.35rem 0 0">
+            The bright band is the current clock pulse. It advances rhythmically
+            while tiles behind it preserve partial accumulated results.
+          </p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+
+  <script>
+    "use strict";
+
+    const N = 20;
+    const MAX_CYCLE = 3 * N - 3;
+    const TOTAL_MACS = N * N * N;
+
+    const A = Array.from({length: N}, (_, i) =>
+      Array.from({length: N}, (_, k) => ((i * 3 + k * 5 + 1) % 9) - 4)
+    );
+
+    const B = Array.from({length: N}, (_, k) =>
+      Array.from({length: N}, (_, j) => ((k * 7 + j * 2 + 3) % 9) - 4)
+    );
+
+    let cycle = 0;
+    let running = false;
+    let timer = null;
+    let selectedIndex = 0;
+    let accumulators;
+    let progress;
+
+    const tiles = [];
+    const grid = document.getElementById("tileGrid");
+    const playButton = document.getElementById("playButton");
+    const stepButton = document.getElementById("stepButton");
+    const resetButton = document.getElementById("resetButton");
+    const speedControl = document.getElementById("speedControl");
+    const colorMode = document.getElementById("colorMode");
+    const clockMetric = document.getElementById("clockMetric");
+    const activeMetric = document.getElementById("activeMetric");
+    const macMetric = document.getElementById("macMetric");
+    const stateMetric = document.getElementById("stateMetric");
+    const pulseBadge = document.getElementById("pulseBadge");
+    const explanation = document.getElementById("cycleExplanation");
+    const inspector = document.getElementById("inspector");
+    const tooltip = document.getElementById("tooltip");
+
+    function initializeData() {
+      accumulators = Array.from({length: N}, () => Array(N).fill(0));
+      progress = Array.from({length: N}, () => Array(N).fill(0));
+    }
+
+    function coordinates(index) {
+      return {i: Math.floor(index / N), j: index % N};
+    }
+
+    function operationAt(i, j, clock) {
+      const k = clock - i - j;
+      if (k < 0 || k >= N) return null;
+
+      const a = A[i][k];
+      const b = B[k][j];
+      return {k, a, b, product: a * b};
+    }
+
+    function tileState(i, j, displayClock) {
+      if (operationAt(i, j, displayClock)) return "active";
+      if (progress[i][j] >= N) return "complete";
+      if (progress[i][j] > 0) return "partial";
+      return "idle";
+    }
+
+    function stateName(state) {
+      return {
+        idle: "Waiting",
+        active: "Executing MAC",
+        partial: "Partially accumulated",
+        complete: "Complete"
+      }[state];
+    }
+
+    function createTiles() {
+      const fragment = document.createDocumentFragment();
+
+      for (let index = 0; index < N * N; index += 1) {
+        const {i, j} = coordinates(index);
+        const tile = document.createElement("button");
+        tile.type = "button";
+        tile.className = "pe-tile idle";
+        tile.dataset.index = String(index);
+        tile.setAttribute("role", "gridcell");
+        tile.setAttribute("aria-label", `PE row ${i}, column ${j}`);
+
+        tile.addEventListener("mouseenter", event => showTooltip(event, index));
+        tile.addEventListener("mousemove", moveTooltip);
+        tile.addEventListener("mouseleave", hideTooltip);
+        tile.addEventListener("focus", event => showTooltip(event, index));
+        tile.addEventListener("blur", hideTooltip);
+        tile.addEventListener("click", () => selectTile(index));
+
+        tiles.push(tile);
+        fragment.appendChild(tile);
+      }
+
+      grid.appendChild(fragment);
+    }
+
+    function displayCycle() {
+      return cycle === 0 ? 0 : Math.min(cycle - 1, MAX_CYCLE);
+    }
+
+    function detailMarkup(index, includeTitle = false) {
+      const {i, j} = coordinates(index);
+      const shownCycle = displayCycle();
+      const operation = operationAt(i, j, shownCycle);
+      const state = tileState(i, j, shownCycle);
+
+      return `
+        ${includeTitle ? `<strong>PE(${i}, ${j})</strong>` : ""}
+        <dl class="inspector-grid" style="margin-top: 0.55rem">
+          <dt>State</dt><dd>${stateName(state)}</dd>
+          <dt>Clock</dt><dd>${shownCycle}</dd>
+          <dt>k</dt><dd>${operation ? operation.k : "—"}</dd>
+          <dt>A[${i}][k]</dt><dd>${operation ? operation.a : "—"}</dd>
+          <dt>B[k][${j}]</dt><dd>${operation ? operation.b : "—"}</dd>
+          <dt>Product</dt><dd>${operation ? operation.product : "—"}</dd>
+          <dt>Accumulator</dt><dd>${accumulators[i][j]}</dd>
+          <dt>MAC progress</dt><dd>${progress[i][j]} / ${N}</dd>
+        </dl>`;
+    }
+
+    function selectTile(index) {
+      selectedIndex = index;
+      tiles.forEach((tile, tileIndex) => {
+        tile.classList.toggle("selected", tileIndex === selectedIndex);
+      });
+
+      const {i, j} = coordinates(index);
+      inspector.innerHTML = `<span class="badge">PE(${i}, ${j})</span>${detailMarkup(index)}`;
+    }
+
+    function showTooltip(event, index) {
+      tooltip.innerHTML = detailMarkup(index, true);
+      tooltip.hidden = false;
+      moveTooltip(event);
+    }
+
+    function moveTooltip(event) {
+      const targetRect = event.target.getBoundingClientRect();
+      const x = event.clientX || targetRect.right;
+      const y = event.clientY || targetRect.top;
+      const width = 250;
+      const left = Math.min(window.innerWidth - width - 8, x + 14);
+      const top = Math.min(window.innerHeight - 225, y + 14);
+      tooltip.style.left = `${Math.max(8, left)}px`;
+      tooltip.style.top = `${Math.max(8, top)}px`;
+    }
+
+    function hideTooltip() {
+      tooltip.hidden = true;
+    }
+
+    function applyAlternativeColor(tile, i, j, state) {
+      tile.style.removeProperty("background");
+      tile.style.removeProperty("--tile-opacity");
+
+      if (state === "active" || colorMode.value === "state") return;
+
+      if (colorMode.value === "progress" && progress[i][j] > 0) {
+        const ratio = progress[i][j] / N;
+        tile.style.background = `color-mix(in srgb, var(--accent) ${Math.round(18 + ratio * 72)}%, var(--panel-2))`;
+        tile.style.setProperty("--tile-opacity", "1");
+      }
+
+      if (colorMode.value === "magnitude" && progress[i][j] > 0) {
+        const magnitude = Math.min(1, Math.abs(accumulators[i][j]) / 180);
+        tile.style.background = `color-mix(in srgb, var(--complete) ${Math.round(16 + magnitude * 78)}%, var(--panel-2))`;
+        tile.style.setProperty("--tile-opacity", "1");
+      }
+    }
+
+    function render(shownCycle = displayCycle()) {
+      let activeCount = 0;
+      let completedMacs = 0;
+
+      tiles.forEach((tile, index) => {
+        const {i, j} = coordinates(index);
+        const state = tileState(i, j, shownCycle);
+
+        tile.className = `pe-tile ${state}`;
+        if (index === selectedIndex) tile.classList.add("selected");
+        applyAlternativeColor(tile, i, j, state);
+
+        if (state === "active") activeCount += 1;
+        completedMacs += progress[i][j];
+      });
+
+      clockMetric.textContent = `${shownCycle} / ${MAX_CYCLE}`;
+      activeMetric.textContent = String(activeCount);
+      macMetric.textContent = `${completedMacs} / ${TOTAL_MACS}`;
+      pulseBadge.textContent = `Pulse ${shownCycle}`;
+
+      if (completedMacs === TOTAL_MACS) {
+        stateMetric.textContent = "Complete";
+      } else if (running) {
+        stateMetric.textContent = "Running";
+      } else if (cycle === 0) {
+        stateMetric.textContent = "Ready";
+      } else {
+        stateMetric.textContent = "Paused";
+      }
+
+      selectTile(selectedIndex);
+    }
+
+    function executeCycle() {
+      if (cycle > MAX_CYCLE) {
+        stop();
+        stateMetric.textContent = "Complete";
+        explanation.textContent =
+          "All 8,000 multiply–accumulate operations are complete. Each tile now stores one final output value.";
+        return;
+      }
+
+      let activeCount = 0;
+
+      for (let i = 0; i < N; i += 1) {
+        for (let j = 0; j < N; j += 1) {
+          const operation = operationAt(i, j, cycle);
+          if (!operation) continue;
+
+          accumulators[i][j] += operation.product;
+          progress[i][j] += 1;
+          activeCount += 1;
+        }
+      }
+
+      render(cycle);
+
+      const phase = cycle < N
+        ? "The pipeline is filling."
+        : cycle <= 2 * N - 2
+          ? "A broad diagonal wavefront is computing concurrently."
+          : "The final wavefront is draining from the array.";
+
+      explanation.textContent =
+        `Clock ${cycle}: ${activeCount} processing elements execute one MAC each. ${phase}`;
+
+      cycle += 1;
+
+      if (cycle > MAX_CYCLE) {
+        stop();
+        stateMetric.textContent = "Complete";
+      }
+    }
+
+    function intervalMilliseconds() {
+      return Number(speedControl.value);
+    }
+
+    function schedule() {
+      clearInterval(timer);
+      if (!running) return;
+      timer = setInterval(executeCycle, intervalMilliseconds());
+    }
+
+    function togglePlay() {
+      if (cycle > MAX_CYCLE) resetSimulation();
+      running = !running;
+      playButton.textContent = running ? "Pause" : "Play";
+      schedule();
+      render();
+    }
+
+    function stop() {
+      running = false;
+      clearInterval(timer);
+      timer = null;
+      playButton.textContent = "Play";
+    }
+
+    function resetSimulation() {
+      stop();
+      cycle = 0;
+      initializeData();
+      render(0);
+      explanation.textContent =
+        "At clock 0, the first A and B values meet at PE(0,0). Press Play to observe the active color pulse propagate diagonally.";
+      stateMetric.textContent = "Ready";
+    }
+
+    playButton.addEventListener("click", togglePlay);
+    stepButton.addEventListener("click", () => {
+      stop();
+      executeCycle();
+    });
+    resetButton.addEventListener("click", resetSimulation);
+    speedControl.addEventListener("input", schedule);
+    colorMode.addEventListener("change", () => render());
+
+    initializeData();
+    createTiles();
+    selectTile(0);
+    render(0);
+  </script>
+</body>
+</html>
