@@ -1,33 +1,32 @@
-# CI-DIGITAL — Systolic Array Pulse Simulator
+# CI-DIGITAL — Systolic Array Simulators
 
-Interactive, dependency-free visualization of matrix multiplication on a 3 × 3 systolic processing-element array.
+Interactive, dependency-free visualizations of matrix multiplication on systolic processing-element arrays.
 
-## What it demonstrates
+## Versions
 
-- clock-aligned data injection;
-- horizontal propagation of matrix `A` values;
-- vertical propagation of matrix `B` values;
-- one local multiply–accumulate operation per active processing element;
-- pipeline fill, concurrent computation, and final matrix accumulation.
+- **v1 — detailed 3×3 simulator:** repository root (`index.html`). It exposes each processing element, operand, product, accumulator, and result value.
+- **v2 — 20×20 wavefront simulator:** `v2/index.html`. It emphasizes the meaning of *systolic* through clock-driven tile-color propagation, with hover and click inspection.
+
+After GitHub Pages is enabled, the expected addresses are:
+
+```text
+https://pu3flm.github.io/CI-DIGITAL/
+https://pu3flm.github.io/CI-DIGITAL/v2/
+```
 
 ## Run locally
 
-Open `index.html` directly in a modern browser, or serve the repository root:
+Serve the repository root:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then open `http://localhost:8000`.
-
-## Deployment
-
-The repository includes `.github/workflows/pages.yml`, which packages the repository root and deploys it through GitHub Pages after pushes to `main`.
-
-Expected public address after GitHub Pages is enabled for this repository:
+Then open:
 
 ```text
-https://pu3flm.github.io/CI-DIGITAL/
+http://localhost:8000/
+http://localhost:8000/v2/
 ```
 
 ## Structure
@@ -37,6 +36,8 @@ CI-DIGITAL/
 ├── .github/
 │   └── workflows/
 │       └── pages.yml
+├── v2/
+│   └── index.html
 ├── index.html
 └── README.md
 ```
